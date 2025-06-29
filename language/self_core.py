@@ -8,6 +8,9 @@ class SelfModel:
         self.reasons = []
         self.evaluations = []
         self.adjustments = []
+        self.traces = {}  # trace_label: list of steps
+        self.current_trace = None
+        self.contradictions = []
 
     def set_identity(self, id_text):
         self.identity = id_text
@@ -32,11 +35,32 @@ class SelfModel:
 
     def add_adjustment(self, text):
         self.adjustments.append(text)
-    
-    def ask_self(self, prompt):
-        if "why" in prompt.lower():
-           return ["Because I am designed to reflect, reason, and learn."]
-        return ["I do not yet understand the question."]
+
+    # Tracing cognition
+    def start_trace(self, label):
+        self.traces[label] = []
+        self.current_trace = label
+
+    def add_trace_step(self, label, step):
+        if label not in self.traces:
+            self.traces[label] = []
+        self.traces[label].append(step)
+
+    def get_trace(self, label):
+        return self.traces.get(label, ["(no trace found)"])
+
+    # Contradiction logic
+    def add_contradiction(self, note):
+        self.contradictions.append(note)
+
+    def resolve_contradictions(self):
+        if not self.contradictions:
+            return ["No contradictions detected."]
+        lines = ["Resolving contradictions:"]
+        for c in self.contradictions:
+            lines.append(f"- {c} -> resolved or acknowledged.")
+        self.contradictions.clear()
+        return lines
 
     def describe(self):
         desc = [f"Identity: {self.identity}"]
@@ -55,3 +79,8 @@ class SelfModel:
         if self.adjustments:
             desc += ["Adjustments:"] + [f"- {a}" for a in self.adjustments]
         return desc
+
+    def ask_self(self, prompt):
+        if "why" in prompt.lower():
+            return ["Because I am designed to reflect, reason, and learn."]
+        return ["I do not yet understand the question."]

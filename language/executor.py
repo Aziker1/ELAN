@@ -1,5 +1,4 @@
 from language.self_core import SelfModel
-from language.parser import parse_line
 
 class Executor:
     def __init__(self, memory):
@@ -15,7 +14,8 @@ class Executor:
         self.outputs = {}
 
     def execute(self, node):
-        if not node: return None
+        if not node:
+            return None
         cmd = node[0]
 
         if cmd == 'say':
@@ -24,8 +24,6 @@ class Executor:
             if self.last_label:
                 self.outputs[self.last_label] = val
                 self.last_label = None
-            if self.self_model.current_trace:
-                self.self_model.add_trace_step(self.self_model.current_trace, f'say {val}')
 
         elif cmd == 'remember':
             _, key, val = node
@@ -63,7 +61,6 @@ class Executor:
             for name in self.memory.macros:
                 self.execute(['reflect_macro', name])
 
-        # Self-model extensions
         elif cmd == 'identity':
             self.self_model.set_identity(node[1])
         elif cmd == 'declare':
@@ -87,19 +84,6 @@ class Executor:
         elif cmd == 'adjust':
             self.self_model.add_adjustment(f"Adjusted: {node[1]}")
 
-        # Cognitive logic
-        elif cmd == 'trace_thought':
-            self.self_model.start_trace(node[1])
-        elif cmd == 'thought_path':
-            for line in self.self_model.get_trace(node[1]):
-                print(line)
-        elif cmd == 'mark_contradiction':
-            self.self_model.add_contradiction(node[1])
-        elif cmd == 'resolve_contradictions':
-            for line in self.self_model.resolve_contradictions():
-                print(line)
-
-        # Meta-programming
         elif cmd == 'remember_program':
             self.collecting = node[1]
             self.collected_lines = []
@@ -115,6 +99,7 @@ class Executor:
         elif cmd == 'run_program':
             label = node[1]
             if label in self.programs:
+                from language.parser import parse_line
                 for line in self.programs[label]:
                     parsed = parse_line(line)
                     if parsed:
@@ -125,6 +110,7 @@ class Executor:
             source_prog = node[3]
             if source_prog in self.programs:
                 body = []
+                from language.parser import parse_line
                 for line in self.programs[source_prog]:
                     parsed = parse_line(line)
                     if parsed:
@@ -134,7 +120,6 @@ class Executor:
         elif cmd == 'analyze_success':
             print(f"Analyzing output of {node[1]}: (stub logic)")
 
-        # Thought evaluation
         elif cmd == 'label_output':
             self.last_label = node[1]
 
@@ -147,7 +132,7 @@ class Executor:
             for label, expected in self.expectations.items():
                 actual = self.outputs.get(label)
                 status = "PASS" if actual == expected else f"FAIL (got {actual})"
-                print(f"{label}: expected {expected} → {status}")
+                print(f"{label}: expected {expected} -> {status}")
 
         elif cmd == 'rewrite_macro':
             name = node[1]
@@ -156,13 +141,13 @@ class Executor:
 
         elif cmd == 'suggest_fix':
             macro = node[1]
-            print(f"Suggestion for macro '{macro}':")
+            print(f"Suggesting fix for macro '{macro}'")
             if macro in self.memory.macros:
-                print("# Replace with recursive or corrected logic.")
+                print("Consider simplifying or validating recursive termination.")
 
         elif cmd == 'remember_fix':
             label = node[1]
-            suggestion = f"Fix for {label}: consider rewriting or verifying logic."
+            suggestion = f"Fix for {label}: consider better recursion or error handling."
             self.memory.define(f"fix_{label}", suggestion)
 
         elif cmd == 'apply_fix':
