@@ -1,0 +1,8 @@
+{
+  "language_version": "0.6",
+  "author": "Ada",
+  "entry_point": "interpreter/main.py",
+  "default_script": "examples/test_vector_math.elan",
+  "max_recursion": 500,
+  "safe_mode": true
+}

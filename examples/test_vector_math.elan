@@ -1,0 +1,22 @@
+
+# Complex tests
+say complex(2,3) + complex(1,-1)
+remember z complex(2,3)
+remember w complex(1,-1)
+remember sum z + w
+say real(sum)
+say imag(sum)
+
+# Array tests
+remember a [1,2,3,4]
+say len(a)
+say a[2]
+remember a[2] 99
+say a
+
+# Vector ops
+remember v1 [1,2,3]
+remember v2 [4,5,6]
+say vector_add v1 v2
+say dot v1 v2
+say scalar_mul v1 2.5

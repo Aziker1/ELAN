@@ -1,0 +1,32 @@
+# --- examples/test_fft.elan ---
+# FFT-like structure in ELAN
+
+define fft(input) as:
+    remember N len(input)
+    if N == 1 then return input
+
+    remember even []
+    remember odd []
+    remember i 0
+    while i < N do:
+        if i % 2 == 0 then remember even vector_add even [input[i]]
+        if i % 2 == 1 then remember odd vector_add odd [input[i]]
+        remember i i + 1
+
+    remember Fe fft(even)
+    remember Fo fft(odd)
+
+    remember output []
+    remember k 0
+    while k < N / 2 do:
+        remember angle -2 * pi * k / N
+        remember twiddle complex(cos(angle), sin(angle))
+        remember t scalar_mul Fo[k] twiddle
+        remember output[k] Fe[k] + t
+        remember output[k + N/2] Fe[k] - t
+        remember k k + 1
+
+    return output
+
+remember data [1, 2, 3, 4, 0, 0, 0, 0]
+say fft(data)

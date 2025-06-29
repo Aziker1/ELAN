@@ -1,0 +1,12 @@
+# examples/test_self.elan
+
+identity ELAN is a language
+declare I am recursive
+belief I exist to think
+belief I learn from reflection
+
+remember x 5
+say x
+
+describe self
+ask self why do you think?
