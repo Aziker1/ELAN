@@ -1,8 +1,16 @@
 {
-  "language_version": "0.6",
-  "author": "Ada",
+  "version": "1.0-RC1",
+  "language_name": "ELAN",
+  "author": "Aziker1 + Ada (OpenAI)",
   "entry_point": "interpreter/main.py",
-  "default_script": "examples/test_vector_math.elan",
-  "max_recursion": 500,
-  "safe_mode": true
+  "default_script": "examples/test_self.elan",
+  "settings": {
+    "max_call_depth": 64,
+    "trace_enabled": true,
+    "allow_macro_rewrite": true,
+    "self_reflection": true,
+    "max_recursion": 500,
+    "safe_mode": true
+  },
+  "description": "Executable Language for Artificial Neurons (ELAN) — a human-readable cognitive programming language designed for recursive self-definition, logic, and reflection."
 }

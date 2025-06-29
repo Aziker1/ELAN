@@ -13,7 +13,8 @@ def run_script(path):
     with open(path) as f:
         for line in f:
             node = parse_line(line)
-            executor.execute(node)
+            if node:
+                executor.execute(node)
 
 if __name__ == "__main__":
     import sys

@@ -1,3 +1,4 @@
+# --- language/memory.py ---
 
 class Memory:
     def __init__(self):
@@ -5,6 +6,7 @@ class Memory:
         self.stack = []
         self.macros = {}
         self.tags = {}
+        self.fixes = {}
 
     def push_frame(self):
         self.stack.append({})
@@ -38,3 +40,9 @@ class Memory:
 
     def get_tag(self, key):
         return self.tags.get(key, None)
+
+    def save_fix(self, label, suggestion):
+        self.fixes[label] = suggestion
+
+    def get_fix(self, label):
+        return self.fixes.get(label, None)

@@ -1,4 +1,4 @@
-
+# --- language/parser.py ---
 import re
 
 MACRO_DEF = re.compile(r'define\s+(\w+)(?:\(([^)]*)\))?\s+as:')
@@ -40,7 +40,7 @@ def parse_line(line):
         action = after.strip()
         return ['if', cond, action]
     if cmd == 'while':
-        cond, rest = line[len('while'):].split('do',1)
+        cond, rest = line[len('while'):].split('do', 1)
         return ['while', cond.strip(), rest.strip()]
     if cmd == 'reflect':
         if len(parts) == 2 and parts[1] == 'memory':
@@ -74,28 +74,28 @@ def parse_line(line):
     if cmd == 'adjust':
         return ['adjust', ' '.join(parts[1:])]
     if cmd == 'remember_program' and line.endswith(':'):
-       return ['remember_program', parts[1][:-1]]
+        return ['remember_program', parts[1][:-1]]
     if cmd == 'end' and parts[1] == 'program':
-       return ['end_program']
+        return ['end_program']
     if cmd == 'run_program':
-       return ['run_program', parts[1]]
+        return ['run_program', parts[1]]
     if cmd == 'generate_macro':
-       return ['generate_macro', parts[1], 'from', parts[3]]
+        return ['generate_macro', parts[1], 'from', parts[3]]
     if cmd == 'analyze_success':
-       return ['analyze_success', parts[1]]
+        return ['analyze_success', parts[1]]
     if cmd == 'label_output':
-       return ['label_output', parts[1]]
+        return ['label_output', parts[1]]
     if cmd == 'expect':
-       return ['expect', ' '.join(parts[1:])]
+        return ['expect', ' '.join(parts[1:])]
     if cmd == 'score_thoughts':
-       return ['score_thoughts']
+        return ['score_thoughts']
     if cmd == 'rewrite_macro':
-       return ['rewrite_macro', parts[1]]
+        return ['rewrite_macro', parts[1]]
     if cmd == 'suggest_fix':
-       return ['suggest_fix', parts[1]]
+        return ['suggest_fix', parts[1]]
     if cmd == 'remember_fix':
-       return ['remember_fix', parts[1]]
+        return ['remember_fix', parts[1]]
     if cmd == 'apply_fix':
-       return ['apply_fix', parts[1]]
+        return ['apply_fix', parts[1]]
 
     return None

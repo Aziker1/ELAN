@@ -1,3 +1,5 @@
+# --- language/self_core.py ---
+
 class SelfModel:
     def __init__(self):
         self.identity = "ELAN"
@@ -36,7 +38,6 @@ class SelfModel:
     def add_adjustment(self, text):
         self.adjustments.append(text)
 
-    # Tracing cognition
     def start_trace(self, label):
         self.traces[label] = []
         self.current_trace = label
@@ -49,7 +50,6 @@ class SelfModel:
     def get_trace(self, label):
         return self.traces.get(label, ["(no trace found)"])
 
-    # Contradiction logic
     def add_contradiction(self, note):
         self.contradictions.append(note)
 
@@ -58,26 +58,33 @@ class SelfModel:
             return ["No contradictions detected."]
         lines = ["Resolving contradictions:"]
         for c in self.contradictions:
-            lines.append(f"- {c} -> resolved or acknowledged.")
+            lines.append("- " + c + " -> resolved or acknowledged.")
         self.contradictions.clear()
         return lines
 
     def describe(self):
-        desc = [f"Identity: {self.identity}"]
+        desc = ["Identity: " + self.identity]
         if self.declarations:
-            desc += ["Declarations:"] + [f"- {d}" for d in self.declarations]
+            desc.append("Declarations:")
+            desc += ["- " + d for d in self.declarations]
         if self.beliefs:
-            desc += ["Beliefs:"] + [f"- {b}" for b in self.beliefs]
+            desc.append("Beliefs:")
+            desc += ["- " + b for b in self.beliefs]
         if self.intents:
-            desc += ["Intents:"] + [f"- {i}" for i in self.intents]
+            desc.append("Intents:")
+            desc += ["- " + i for i in self.intents]
         if self.goals:
-            desc += ["Goals:"] + [f"- {g}" for g in self.goals]
+            desc.append("Goals:")
+            desc += ["- " + g for g in self.goals]
         if self.reasons:
-            desc += ["Reasons:"] + [f"- {r}" for r in self.reasons]
+            desc.append("Reasons:")
+            desc += ["- " + r for r in self.reasons]
         if self.evaluations:
-            desc += ["Evaluations:"] + [f"- {e}" for e in self.evaluations]
+            desc.append("Evaluations:")
+            desc += ["- " + e for e in self.evaluations]
         if self.adjustments:
-            desc += ["Adjustments:"] + [f"- {a}" for a in self.adjustments]
+            desc.append("Adjustments:")
+            desc += ["- " + a for a in self.adjustments]
         return desc
 
     def ask_self(self, prompt):
