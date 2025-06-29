@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Environment
+.env
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and debug
+*.log
+
+# Python REPL history
+.python_history
+
+# Bundles or builds
+*.zip
+dist/
+build/
+
+# Mac-specific
+*.DS_Store
