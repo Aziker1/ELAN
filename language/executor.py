@@ -15,13 +15,13 @@ class Executor:
         self.self_model = SelfModel()
         self.type_engine = TypeEngine()
 
-        self.programs = {}          # stored programs by label
-        self.collecting = None      # label for collecting program lines
-        self.collected_lines = []   # buffer for collected lines
+        self.programs = {}
+        self.collecting = None
+        self.collected_lines = []
 
-        self.expectations = {}      # label → expected value
-        self.last_label = None      # label for last say output
-        self.outputs = {}           # label → actual output
+        self.expectations = {}
+        self.last_label = None
+        self.outputs = {}
 
     def execute(self, node):
         if not node:
@@ -30,7 +30,7 @@ class Executor:
         cmd = node[0]
 
         try:
-            # Control flow commands with blocks and exceptions
+            # Control flow with blocks and exceptions
             if cmd == "return":
                 if self.call_depth == 0:
                     print("[WARN] 'return' outside function ignored")
@@ -45,11 +45,11 @@ class Executor:
                 cond = self._eval_value(node[1])
                 if cond:
                     body = node[2]
-                    for stmt in body if isinstance(body, list) and (len(body) == 0 or isinstance(body[0], list)) else [body]:
+                    for stmt in body if isinstance(body, list) and isinstance(body[0], list) else [body]:
                         self.execute(stmt)
                 elif len(node) > 3:
                     else_body = node[3]
-                    for stmt in else_body if isinstance(else_body, list) and (len(else_body) == 0 or isinstance(else_body[0], list)) else [else_body]:
+                    for stmt in else_body if isinstance(else_body, list) and isinstance(else_body[0], list) else [else_body]:
                         self.execute(stmt)
 
             elif cmd == "while":
@@ -64,20 +64,19 @@ class Executor:
                         print("[WARN] Loop iteration limit reached")
                         break
                     try:
-                        for stmt in body_expr if isinstance(body_expr, list) and (len(body_expr) == 0 or isinstance(body_expr[0], list)) else [body_expr]:
+                        for stmt in body_expr if isinstance(body_expr, list) and isinstance(body_expr[0], list) else [body_expr]:
                             self.execute(stmt)
                     except BreakException:
                         break
 
             elif cmd == "function_def":
-                # node format: ["function_def", name, params, body]
                 _, name, params, body = node
                 self.memory.define_macro(name, {"params": params, "body": body})
 
             elif cmd == "function_call":
                 return self._call_function(node[1], node[2])
 
-            # I/O and variable commands
+            # I/O and variable commands (say, remember, recall)
             elif cmd == "say":
                 val = self._eval_value(node[1])
                 print(val)
@@ -112,9 +111,8 @@ class Executor:
                     else:
                         print(f"{label}: expected {expected} → FAIL (got {actual})")
 
-            # Reflection commands
+            # Reflection and other commands (stub or as before)
             elif cmd == "reflect_memory":
-                # Show all variables (locals + globals) using memory.all()
                 all_vars = self.memory.all()
                 for k, v in all_vars.items():
                     print(f"{k} = {v}")
@@ -134,7 +132,6 @@ class Executor:
                 for name in self.memory.macros:
                     self.execute(["reflect_macro", name])
 
-            # Self model commands
             elif cmd == "identity":
                 self.self_model.set_identity(node[1])
             elif cmd == "declare":
@@ -158,7 +155,6 @@ class Executor:
             elif cmd == "adjust":
                 self.self_model.add_adjustment(node[1])
 
-            # Program recording and running
             elif cmd == "remember_program":
                 self.collecting = node[1]
                 self.collected_lines = []
@@ -229,7 +225,6 @@ class Executor:
     def _eval_value(self, token):
         # Evaluate numeric literals, expressions, strings, or recall variables
         if isinstance(token, list):
-            # Handle expressions recursively here
             op = token[0]
             if op == '+':
                 return self._eval_value(token[1]) + self._eval_value(token[2])
@@ -239,11 +234,7 @@ class Executor:
                 return self._eval_value(token[1]) * self._eval_value(token[2])
             elif op == '/':
                 return self._eval_value(token[1]) / self._eval_value(token[2])
-            else:
-                # Could support more complex expressions here
-                pass
 
-        # Try int, float, else recall variable, else literal string
         try:
             return int(token)
         except:
