@@ -1,24 +1,27 @@
-﻿# --- language/executor.py ---
-from language.self_core import SelfModel
-from language.parser import parse_line
-from language.typecheck import TypeEngine
+﻿class ReturnException(Exception):
+    def __init__(self, value):
+        self.value = value
 
+class BreakException(Exception):
+    pass
+
+class ExecutorError(Exception):
+    pass
 
 class Executor:
     def __init__(self, memory):
         self.memory = memory
         self.call_depth = 0
-        self.current_loop_break = False
         self.self_model = SelfModel()
         self.type_engine = TypeEngine()
 
-        self.programs = {}  # label → [str]
-        self.collecting = None
-        self.collected_lines = []
+        self.programs = {}          # stored programs by label
+        self.collecting = None      # label for collecting program lines
+        self.collected_lines = []   # buffer for collected lines
 
-        self.expectations = {}
-        self.last_label = None
-        self.outputs = {}
+        self.expectations = {}      # label → expected value
+        self.last_label = None      # label for last say output
+        self.outputs = {}           # label → actual output
 
     def execute(self, node):
         if not node:
@@ -26,179 +29,221 @@ class Executor:
 
         cmd = node[0]
 
-        # === I/O and Display ===
-        if cmd == "say":
-            val = self._eval_value(node[1])
-            print(val)
-            if self.last_label:
-                self.outputs[self.last_label] = val
-                self.last_label = None
+        try:
+            # Control flow commands with blocks and exceptions
+            if cmd == "return":
+                if self.call_depth == 0:
+                    print("[WARN] 'return' outside function ignored")
+                    return None
+                val = self._eval_value(node[1])
+                raise ReturnException(val)
 
-        elif cmd == "remember":
-            _, key, val = node
-            evaluated = self._eval_value(val)
-            self.memory.define(key, evaluated)
-            self.type_engine.infer_type(key, evaluated)
+            elif cmd == "break":
+                raise BreakException()
 
-        elif cmd == "recall":
-            print(self.memory.recall(node[1]))
+            elif cmd == "if":
+                cond = self._eval_value(node[1])
+                if cond:
+                    body = node[2]
+                    for stmt in body if isinstance(body, list) and (len(body) == 0 or isinstance(body[0], list)) else [body]:
+                        self.execute(stmt)
+                elif len(node) > 3:
+                    else_body = node[3]
+                    for stmt in else_body if isinstance(else_body, list) and (len(else_body) == 0 or isinstance(else_body[0], list)) else [else_body]:
+                        self.execute(stmt)
 
-        elif cmd == "break":
-            self.current_loop_break = True
+            elif cmd == "while":
+                cond_expr = node[1]
+                body_expr = node[2]
+                max_iterations = 10000
+                count = 0
 
-        elif cmd == "return":
-            return self._eval_value(node[1])
+                while self._eval_value(cond_expr):
+                    count += 1
+                    if count > max_iterations:
+                        print("[WARN] Loop iteration limit reached")
+                        break
+                    try:
+                        for stmt in body_expr if isinstance(body_expr, list) and (len(body_expr) == 0 or isinstance(body_expr[0], list)) else [body_expr]:
+                            self.execute(stmt)
+                    except BreakException:
+                        break
 
-        # === Control ===
-        elif cmd == "if":
-            cond = self._eval_value(node[1])
-            if cond:
-                return self._eval_value(node[2])
+            elif cmd == "function_def":
+                # node format: ["function_def", name, params, body]
+                _, name, params, body = node
+                self.memory.define_macro(name, {"params": params, "body": body})
 
-        elif cmd == "while":
-            cond_expr = node[1]
-            body_expr = node[2]
-            while self._eval_value(cond_expr):
-                self._eval_value(body_expr)
-                if self.current_loop_break:
-                    self.current_loop_break = False
-                    break
+            elif cmd == "function_call":
+                return self._call_function(node[1], node[2])
 
-        # === Function/Macro System ===
-        elif cmd == "function_def":
-            _, name, params = node
-            self.memory.macros[name] = {"params": params, "body": []}
+            # I/O and variable commands
+            elif cmd == "say":
+                val = self._eval_value(node[1])
+                print(val)
+                if self.last_label:
+                    self.outputs[self.last_label] = val
+                    self.last_label = None
 
-        elif cmd == "function_call":
-            return self._call_function(node[1], node[2])
+            elif cmd == "remember":
+                _, key, val = node
+                evaluated = self._eval_value(val)
+                self.memory.define(key, evaluated)
+                self.type_engine.infer_type(key, evaluated)
 
-        # === Reflection ===
-        elif cmd == "reflect_memory":
-            for k, v in self.memory.global_vars.items():
-                print(f"{k} = {v}")
+            elif cmd == "recall":
+                val = self.memory.recall(node[1])
+                print(val)
 
-        elif cmd == "reflect_macro":
-            name = node[1]
-            macro = self.memory.macros.get(name)
-            if macro:
-                print(f"{name}({', '.join(macro['params'])}):")
-                for step in macro["body"]:
-                    print("  " + str(step))
+            elif cmd == "label_output":
+                self.last_label = node[1]
 
-        elif cmd == "reflect_all":
-            print("== Memory ==")
-            self.execute(["reflect_memory"])
-            print("== Macros ==")
-            for name in self.memory.macros:
-                self.execute(["reflect_macro", name])
+            elif cmd == "expect":
+                label = node[1]
+                val = self._eval_value(node[2])
+                self.expectations[label] = val
 
-        # === Self-Model ===
-        elif cmd == "identity":
-            self.self_model.set_identity(node[1])
-        elif cmd == "declare":
-            self.self_model.add_declaration(node[1])
-        elif cmd == "belief":
-            self.self_model.add_belief(node[1])
-        elif cmd == "describe_self":
-            for line in self.self_model.describe():
-                print(line)
-        elif cmd == "ask_self":
-            for line in self.self_model.ask_self(node[1]):
-                print(line)
-        elif cmd == "intent":
-            self.self_model.add_intent(node[1])
-        elif cmd == "goal":
-            self.self_model.add_goal(node[1])
-        elif cmd == "reason":
-            self.self_model.add_reason(node[1])
-        elif cmd == "evaluate":
-            self.self_model.add_evaluation("Evaluated: " + node[1])
-        elif cmd == "adjust":
-            self.self_model.add_adjustment("Adjusted: " + node[1])
+            elif cmd == "score_thoughts":
+                print("=== Thought Evaluation ===")
+                for label, expected in self.expectations.items():
+                    actual = self.outputs.get(label)
+                    if actual == expected:
+                        print(f"{label}: expected {expected} → OK")
+                    else:
+                        print(f"{label}: expected {expected} → FAIL (got {actual})")
 
-        # === Meta-Programming ===
-        elif cmd == "remember_program":
-            self.collecting = node[1]
-            self.collected_lines = []
+            # Reflection commands
+            elif cmd == "reflect_memory":
+                # Show all variables (locals + globals) using memory.all()
+                all_vars = self.memory.all()
+                for k, v in all_vars.items():
+                    print(f"{k} = {v}")
 
-        elif cmd == "end_program":
-            self.programs[self.collecting] = self.collected_lines.copy()
-            self.collecting = None
-            self.collected_lines = []
+            elif cmd == "reflect_macro":
+                name = node[1]
+                macro = self.memory.get_macro(name)
+                if macro:
+                    print(f"{name}({', '.join(macro.get('params', []))}):")
+                    for step in macro.get("body", []):
+                        print("  " + str(step))
 
-        elif self.collecting:
-            self.collected_lines.append(" ".join(map(str, node)))
+            elif cmd == "reflect_all":
+                print("== Memory ==")
+                self.execute(["reflect_memory"])
+                print("== Macros ==")
+                for name in self.memory.macros:
+                    self.execute(["reflect_macro", name])
 
-        elif cmd == "run_program":
-            label = node[1]
-            if label in self.programs:
-                for line in self.programs[label]:
-                    parsed = parse_line(line)
-                    if parsed:
-                        self.execute(parsed)
+            # Self model commands
+            elif cmd == "identity":
+                self.self_model.set_identity(node[1])
+            elif cmd == "declare":
+                self.self_model.add_declaration(node[1])
+            elif cmd == "belief":
+                self.self_model.add_belief(node[1])
+            elif cmd == "describe_self":
+                for line in self.self_model.describe():
+                    print(line)
+            elif cmd == "ask_self":
+                for line in self.self_model.ask_self(node[1]):
+                    print(line)
+            elif cmd == "intent":
+                self.self_model.add_intent(node[1])
+            elif cmd == "goal":
+                self.self_model.add_goal(node[1])
+            elif cmd == "reason":
+                self.self_model.add_reason(node[1])
+            elif cmd == "evaluate":
+                self.self_model.add_evaluation(node[1])
+            elif cmd == "adjust":
+                self.self_model.add_adjustment(node[1])
 
-        elif cmd == "generate_macro":
-            macro_name = node[1]
-            source_prog = node[3]
-            if source_prog in self.programs:
-                body = []
-                for line in self.programs[source_prog]:
-                    parsed = parse_line(line)
-                    if parsed:
-                        body.append(parsed)
-                self.memory.macros[macro_name] = {"params": [], "body": body}
+            # Program recording and running
+            elif cmd == "remember_program":
+                self.collecting = node[1]
+                self.collected_lines = []
 
-        elif cmd == "analyze_success":
-            print("Analyzing output of " + node[1] + ": (stub logic)")
+            elif cmd == "end_program":
+                self.programs[self.collecting] = self.collected_lines.copy()
+                self.collecting = None
+                self.collected_lines = []
 
-        # === Thought Evaluation ===
-        elif cmd == "label_output":
-            self.last_label = node[1]
+            elif self.collecting:
+                self.collected_lines.append(node)
 
-        elif cmd == "expect":
-            label, _, value = node[1].partition("=")
-            self.expectations[label.strip()] = self._eval_value(value.strip())
+            elif cmd == "run_program":
+                label = node[1]
+                if label in self.programs:
+                    for line in self.programs[label]:
+                        self.execute(line)
 
-        elif cmd == "score_thoughts":
-            print("=== Thought Evaluation ===")
-            for label, expected in self.expectations.items():
-                actual = self.outputs.get(label)
-                if actual == expected:
-                    print(f"{label}: expected {expected} → OK")
+            elif cmd == "generate_macro":
+                macro_name = node[1]
+                source_prog = node[2]
+                if source_prog in self.programs:
+                    body = self.programs[source_prog]
+                    self.memory.define_macro(macro_name, {"params": [], "body": body})
+
+            # Fix/suggestion system (experimental)
+            elif cmd == "rewrite_macro":
+                name = node[1]
+                print(f"Rewriting macro: {name}")
+                self.memory.define_macro(name, {"params": [], "body": []})
+
+            elif cmd == "suggest_fix":
+                macro = node[1]
+                print(f"Suggesting fix for macro '{macro}': (stub)")
+
+            elif cmd == "remember_fix":
+                label = node[1]
+                suggestion = f"Fix for {label}: consider simplification."
+                self.memory.define("fix_" + label, suggestion)
+
+            elif cmd == "apply_fix":
+                label = node[1]
+                suggestion = self.memory.recall("fix_" + label)
+                if suggestion:
+                    print("Applying fix: " + suggestion)
                 else:
-                    print(f"{label}: expected {expected} → FAIL (got {actual})")
+                    print("No fix found for " + label)
 
-        # === Fixes & Introspection ===
-        elif cmd == "rewrite_macro":
-            name = node[1]
-            print("Rewriting macro: " + name)
-            self.memory.macros[name] = {"params": [], "body": []}
-
-        elif cmd == "suggest_fix":
-            macro = node[1]
-            print("Suggesting fix for macro '" + macro + "':")
-            if macro in self.memory.macros:
-                print("# Replace body with simpler logic or recursion handling")
-
-        elif cmd == "remember_fix":
-            label = node[1]
-            suggestion = f"Fix for {label}: consider simplification."
-            self.memory.define("fix_" + label, suggestion)
-
-        elif cmd == "apply_fix":
-            label = node[1]
-            suggestion = self.memory.recall("fix_" + label)
-            if suggestion:
-                print("Applying fix: " + suggestion)
             else:
-                print("No fix found for " + label)
+                raise ExecutorError(f"Unknown command: {cmd}")
 
-        else:
-            print(f"[WARN] Unknown command: {cmd}")
+        except ReturnException as ret:
+            if self.call_depth == 0:
+                print("[WARN] 'return' outside function ignored")
+                return None
+            else:
+                raise ret
+
+        except BreakException:
+            raise  # break handled only inside loops
+
+        except ExecutorError as e:
+            print(f"[ERROR] {e}")
+
+        except Exception as e:
+            print(f"[EXCEPTION] Unexpected error: {e}")
 
     def _eval_value(self, token):
-        if isinstance(token, list) and token[0] == "vector_literal":
-            return [self._eval_value(v) for v in token[1]]
+        # Evaluate numeric literals, expressions, strings, or recall variables
+        if isinstance(token, list):
+            # Handle expressions recursively here
+            op = token[0]
+            if op == '+':
+                return self._eval_value(token[1]) + self._eval_value(token[2])
+            elif op == '-':
+                return self._eval_value(token[1]) - self._eval_value(token[2])
+            elif op == '*':
+                return self._eval_value(token[1]) * self._eval_value(token[2])
+            elif op == '/':
+                return self._eval_value(token[1]) / self._eval_value(token[2])
+            else:
+                # Could support more complex expressions here
+                pass
+
+        # Try int, float, else recall variable, else literal string
         try:
             return int(token)
         except:
@@ -207,30 +252,38 @@ class Executor:
             return float(token)
         except:
             pass
-        return self.memory.recall(token)
+
+        val = self.memory.recall(token)
+        if val is not None:
+            return val
+        else:
+            return token
 
     def _call_function(self, name, args):
-        if name not in self.memory.macros:
-            print(f"[ERROR] Macro/function '{name}' not found.")
+        macro = self.memory.get_macro(name)
+        if macro is None:
+            print(f"[ERROR] Function '{name}' not defined.")
             return None
-        macro = self.memory.macros[name]
-        self.call_depth += 1
+
+        params = macro.get("params", [])
+        body = macro.get("body", [])
+
+        if len(args) != len(params):
+            print(f"[ERROR] Function '{name}' expected {len(params)} args, got {len(args)}.")
+            return None
+
         self.memory.push_frame()
+        for p, a in zip(params, args):
+            self.memory.define(p, self._eval_value(a))
 
-        for i, param in enumerate(macro["params"]):
-            if i < len(args):
-                self.memory.define(param, self._eval_value(args[i]))
-
-        result = None
-        for stmt in macro["body"]:
-            ret = self.execute(stmt)
-            if stmt[0] == "return":
-                result = ret
-                break
-            if self.current_loop_break:
-                self.current_loop_break = False
-                break
-
-        self.memory.pop_frame()
-        self.call_depth -= 1
-        return result
+        self.call_depth += 1
+        ret_val = None
+        try:
+            for stmt in body:
+                self.execute(stmt)
+        except ReturnException as ret:
+            ret_val = ret.value
+        finally:
+            self.call_depth -= 1
+            self.memory.pop_frame()
+        return ret_val

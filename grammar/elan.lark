@@ -2,7 +2,6 @@
 
 ?statement: assignment
           | command
-          | expression
           | block
           | COMMENT
 
@@ -40,10 +39,15 @@ command: "say" value
        | "score_thoughts"
        | "suggest_fix" NAME
        | "break"
+       | "return" value
 
-block: macro_def_block
+block: if_block
+     | while_block
+     | function_def_block
 
-macro_def_block: "define" NAME "(" [param_list] ")" "as:" block_body "end" "define"
+if_block: "if" expr "as:" block ("else" "as:" block)? "end" "if"
+while_block: "while" expr "as:" block "end" "while"
+function_def_block: "define" NAME "(" [param_list] ")" "as:" block "end" "define"
 
 param_list: NAME ("," NAME)*
 
