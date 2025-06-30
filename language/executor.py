@@ -1,6 +1,8 @@
+﻿# --- language/executor.py ---
 from language.self_core import SelfModel
 from language.parser import parse_line
-from language.typecheck import TypeEngine  # <-- NEW
+from language.typecheck import TypeEngine
+
 
 class Executor:
     def __init__(self, memory):
@@ -8,24 +10,23 @@ class Executor:
         self.call_depth = 0
         self.current_loop_break = False
         self.self_model = SelfModel()
-        self.type_engine = TypeEngine()  # <-- NEW
+        self.type_engine = TypeEngine()
 
-        # Self-generated programs and macros
-        self.programs = {}  # name: list of lines
+        self.programs = {}  # label → [str]
         self.collecting = None
         self.collected_lines = []
 
-        # Thought scoring and expectations
-        self.expectations = {}  # label: expected value
+        self.expectations = {}
         self.last_label = None
         self.outputs = {}
 
     def execute(self, node):
         if not node:
             return None
+
         cmd = node[0]
 
-        # Basic I/O
+        # === I/O and Display ===
         if cmd == "say":
             val = self._eval_value(node[1])
             print(val)
@@ -37,7 +38,7 @@ class Executor:
             _, key, val = node
             evaluated = self._eval_value(val)
             self.memory.define(key, evaluated)
-            self.type_engine.infer_type(key, evaluated)  # <-- NEW
+            self.type_engine.infer_type(key, evaluated)
 
         elif cmd == "recall":
             print(self.memory.recall(node[1]))
@@ -45,7 +46,25 @@ class Executor:
         elif cmd == "break":
             self.current_loop_break = True
 
-        # Function/macros
+        elif cmd == "return":
+            return self._eval_value(node[1])
+
+        # === Control ===
+        elif cmd == "if":
+            cond = self._eval_value(node[1])
+            if cond:
+                return self._eval_value(node[2])
+
+        elif cmd == "while":
+            cond_expr = node[1]
+            body_expr = node[2]
+            while self._eval_value(cond_expr):
+                self._eval_value(body_expr)
+                if self.current_loop_break:
+                    self.current_loop_break = False
+                    break
+
+        # === Function/Macro System ===
         elif cmd == "function_def":
             _, name, params = node
             self.memory.macros[name] = {"params": params, "body": []}
@@ -53,16 +72,16 @@ class Executor:
         elif cmd == "function_call":
             return self._call_function(node[1], node[2])
 
-        # Reflection
+        # === Reflection ===
         elif cmd == "reflect_memory":
             for k, v in self.memory.global_vars.items():
-                print(k + " = " + str(v))
+                print(f"{k} = {v}")
 
         elif cmd == "reflect_macro":
             name = node[1]
             macro = self.memory.macros.get(name)
             if macro:
-                print(name + "(" + ", ".join(macro["params"]) + "):")
+                print(f"{name}({', '.join(macro['params'])}):")
                 for step in macro["body"]:
                     print("  " + str(step))
 
@@ -73,7 +92,7 @@ class Executor:
             for name in self.memory.macros:
                 self.execute(["reflect_macro", name])
 
-        # Cognition layer
+        # === Self-Model ===
         elif cmd == "identity":
             self.self_model.set_identity(node[1])
         elif cmd == "declare":
@@ -97,22 +116,7 @@ class Executor:
         elif cmd == "adjust":
             self.self_model.add_adjustment("Adjusted: " + node[1])
 
-        # Tracing and contradictions
-        elif cmd == "trace":
-            self.self_model.start_trace(node[1])
-        elif cmd == "trace_step":
-            self.self_model.add_trace_step(node[1], node[2])
-        elif cmd == "trace_view":
-            trace = self.self_model.get_trace(node[1])
-            for line in trace:
-                print(line)
-        elif cmd == "contradiction":
-            self.self_model.add_contradiction(node[1])
-        elif cmd == "resolve":
-            for line in self.self_model.resolve_contradictions():
-                print(line)
-
-        # Meta-programming
+        # === Meta-Programming ===
         elif cmd == "remember_program":
             self.collecting = node[1]
             self.collected_lines = []
@@ -123,7 +127,7 @@ class Executor:
             self.collected_lines = []
 
         elif self.collecting:
-            self.collected_lines.append(" ".join(node))
+            self.collected_lines.append(" ".join(map(str, node)))
 
         elif cmd == "run_program":
             label = node[1]
@@ -147,7 +151,7 @@ class Executor:
         elif cmd == "analyze_success":
             print("Analyzing output of " + node[1] + ": (stub logic)")
 
-        # Thought evaluation
+        # === Thought Evaluation ===
         elif cmd == "label_output":
             self.last_label = node[1]
 
@@ -160,11 +164,11 @@ class Executor:
             for label, expected in self.expectations.items():
                 actual = self.outputs.get(label)
                 if actual == expected:
-                    print(label + ": expected " + str(expected) + " -> OK")
+                    print(f"{label}: expected {expected} → OK")
                 else:
-                    print(label + ": expected " + str(expected) + " -> FAIL (got " + str(actual) + ")")
+                    print(f"{label}: expected {expected} → FAIL (got {actual})")
 
-        # Fixes and repair logic
+        # === Fixes & Introspection ===
         elif cmd == "rewrite_macro":
             name = node[1]
             print("Rewriting macro: " + name)
@@ -178,7 +182,7 @@ class Executor:
 
         elif cmd == "remember_fix":
             label = node[1]
-            suggestion = "Fix for " + label + ": consider simplification."
+            suggestion = f"Fix for {label}: consider simplification."
             self.memory.define("fix_" + label, suggestion)
 
         elif cmd == "apply_fix":
@@ -189,7 +193,12 @@ class Executor:
             else:
                 print("No fix found for " + label)
 
+        else:
+            print(f"[WARN] Unknown command: {cmd}")
+
     def _eval_value(self, token):
+        if isinstance(token, list) and token[0] == "vector_literal":
+            return [self._eval_value(v) for v in token[1]]
         try:
             return int(token)
         except:
@@ -200,14 +209,18 @@ class Executor:
             pass
         return self.memory.recall(token)
 
-    def _call_function(self, name, arg):
+    def _call_function(self, name, args):
         if name not in self.memory.macros:
+            print(f"[ERROR] Macro/function '{name}' not found.")
             return None
         macro = self.memory.macros[name]
         self.call_depth += 1
         self.memory.push_frame()
-        if macro["params"]:
-            self.memory.define(macro["params"][0], self._eval_value(arg))
+
+        for i, param in enumerate(macro["params"]):
+            if i < len(args):
+                self.memory.define(param, self._eval_value(args[i]))
+
         result = None
         for stmt in macro["body"]:
             ret = self.execute(stmt)
@@ -217,6 +230,7 @@ class Executor:
             if self.current_loop_break:
                 self.current_loop_break = False
                 break
+
         self.memory.pop_frame()
         self.call_depth -= 1
         return result

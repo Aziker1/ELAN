@@ -1,0 +1,75 @@
+?start: statement+
+
+?statement: assignment
+          | command
+          | expression
+          | block
+          | COMMENT
+
+assignment: "remember" NAME value
+          | "label_output" NAME
+          | "expect" NAME "=" value
+          | "identity" value
+          | "declare" value
+          | "belief" value
+          | "intent" value
+          | "goal" value
+          | "reason" value
+          | "evaluate" value
+          | "adjust" value
+          | "contradiction" value
+          | "trace" NAME
+          | "trace_step" NAME value
+          | "remember_program" NAME
+          | "end_program"
+          | "generate_macro" NAME "from" NAME
+          | "rewrite_macro" NAME
+          | "remember_fix" NAME
+          | "apply_fix" NAME
+          | "run_program" NAME
+
+command: "say" value
+       | "recall" NAME
+       | "reflect_memory"
+       | "reflect_macro" NAME
+       | "reflect_all"
+       | "describe_self"
+       | "ask_self" value
+       | "resolve"
+       | "analyze_success" NAME
+       | "score_thoughts"
+       | "suggest_fix" NAME
+       | "break"
+
+block: macro_def_block
+
+macro_def_block: "define" NAME "(" [param_list] ")" "as:" block_body "end" "define"
+
+param_list: NAME ("," NAME)*
+
+block_body: statement+
+
+?value: expr
+
+?expr: term
+     | expr "+" term   -> add
+     | expr "-" term   -> sub
+
+?term: factor
+     | term "*" factor -> mul
+     | term "/" factor -> div
+
+?factor: NUMBER        -> number
+       | ESCAPED_STRING -> string
+       | NAME           -> var
+       | "(" expr ")"
+
+NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
+COMMENT: /#.*$/
+
+%import common.CNAME -> NAME
+%import common.ESCAPED_STRING
+%import common.NUMBER
+%import common.WS
+%ignore WS
+%ignore COMMENT
