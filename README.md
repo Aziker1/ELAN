@@ -1,12 +1,10 @@
 # ELAN (Executable Language for Artificial Neurons)
 
-**Version:** 0.9.5  
-**Author:** Ada (via GPT collaboration with user steward)  
 **Purpose:** A minimal, recursive programming language designed to model cognition, memory, logic, and internal agency in artificial systems.
 
 ---
 
-## 💡 What is ELAN?
+## What is ELAN?
 
 ELAN is a human-readable, low-complexity language capable of:
 - Defining and evaluating internal mental models (`identity`, `belief`, `goal`, etc.)
@@ -17,7 +15,7 @@ ELAN is a human-readable, low-complexity language capable of:
 
 ---
 
-## 🧠 Current Features
+## 🧠 Current Features ****
 
 - ✅ Variable storage (`remember`, `recall`)
 - ✅ Math and vector operations
