@@ -1,5 +1,6 @@
 from language.self_core import SelfModel
 from language.parser import parse_line
+from language.typecheck import TypeEngine  # <-- NEW
 
 class Executor:
     def __init__(self, memory):
@@ -7,6 +8,7 @@ class Executor:
         self.call_depth = 0
         self.current_loop_break = False
         self.self_model = SelfModel()
+        self.type_engine = TypeEngine()  # <-- NEW
 
         # Self-generated programs and macros
         self.programs = {}  # name: list of lines
@@ -33,7 +35,9 @@ class Executor:
 
         elif cmd == "remember":
             _, key, val = node
-            self.memory.define(key, self._eval_value(val))
+            evaluated = self._eval_value(val)
+            self.memory.define(key, evaluated)
+            self.type_engine.infer_type(key, evaluated)  # <-- NEW
 
         elif cmd == "recall":
             print(self.memory.recall(node[1]))

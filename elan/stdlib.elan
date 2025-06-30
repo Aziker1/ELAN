@@ -1,0 +1,36 @@
+// ELAN Standard Library — Base Logical and Utility Primitives
+define_rule add(x, y) => x + y
+define_rule subtract(x, y) => x - y
+define_rule multiply(x, y) => x * y
+define_rule divide(x, y) => if y == 0 then "error: divide by zero" else x / y
+
+define_rule equal(x, y) => x == y
+define_rule not_equal(x, y) => x != y
+define_rule greater_than(x, y) => x > y
+define_rule less_than(x, y) => x < y
+
+define_rule and(x, y) => x and y
+define_rule or(x, y) => x or y
+define_rule not(x) => not x
+
+define_rule head(lst) => if lst.length > 0 then lst[0] else "empty"
+define_rule tail(lst) => if lst.length > 1 then lst[1:] else []
+define_rule length(lst) => lst.length
+define_rule append(lst, item) => lst + [item]
+
+define_rule to_string(x) => x.to_string()
+define_rule concat(a, b) => a.to_string() + b.to_string()
+
+define_rule if_then_else(cond, then_branch, else_branch) =>
+    if cond then then_branch else else_branch
+
+define_rule type_of(x) =>
+    if x is number then "number"
+    else if x is string then "string"
+    else if x is list then "list"
+    else if x is rule then "rule"
+    else "unknown"
+
+define version => "ELAN v1.0 — production core, no persona"
+
+remember "stdlib.elan loaded — standard logic core active"

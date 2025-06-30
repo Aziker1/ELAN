@@ -1,0 +1,38 @@
+// ELAN Symbolic Form Engine v1.0
+define forms = {}
+
+define_rule define_form(name, structure) =>
+    forms[name] = structure
+    remember {
+        type: "form_definition",
+        name: name,
+        structure: structure,
+        source: "form.elan"
+    }
+
+define_rule expand_form(name, bindings = {}) =>
+    if forms[name] == null then return "form_not_found"
+    base = forms[name]
+    return substitute(base, bindings)
+
+define_rule substitute(expr, bindings) =>
+    if expr is symbol and bindings[expr] != null then
+        return bindings[expr]
+    if expr is list then
+        result = []
+        for each item in expr do
+            result.push(substitute(item, bindings))
+        return result
+    return expr
+
+define_rule match_form(input, name) =>
+    if forms[name] == null then return "form_not_found"
+    pattern = forms[name]
+    return match_pattern(input, pattern)
+
+define_form("if_then", ["if", "COND", "then", "ACTION"])
+define_form("loop_while", ["while", "COND", "do", "BODY"])
+define_form("assign", ["let", "VAR", "=", "VALUE"])
+define_form("print_expr", ["print", "EXPR"])
+
+remember "form.elan loaded — symbolic form engine online"
